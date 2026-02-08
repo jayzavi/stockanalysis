@@ -2,10 +2,10 @@ import { chat } from "./openrouter";
 import { webSearch, type SearchResult } from "./tavily";
 
 export const MODELS = {
-  alpha: process.env.OPENROUTER_MODEL_ALPHA ?? "anthropic/claude-opus-4",
+  alpha: process.env.OPENROUTER_MODEL_ALPHA ?? "anthropic/claude-sonnet-4",
   beta: process.env.OPENROUTER_MODEL_BETA ?? "openai/gpt-4o",
-  gamma: process.env.OPENROUTER_MODEL_GAMMA ?? "google/gemini-2.0-flash-exp",
-  chairman: process.env.OPENROUTER_MODEL_CHAIRMAN ?? "anthropic/claude-sonnet-4",
+  gamma: process.env.OPENROUTER_MODEL_GAMMA ?? "google/gemini-2.0-flash-001",
+  chairman: process.env.OPENROUTER_MODEL_CHAIRMAN ?? "google/gemini-2.0-flash-001",
 } as const;
 
 export type SpecialistOutput = {
