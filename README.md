@@ -10,6 +10,14 @@ Multi-agent stock research app that produces **executive research memos** (≤2 
 
 ## Deploy on Vercel (recommended — no “dev server” needed)
 
+## Memo history (Google Drive)
+
+Optional: **Sign in with Google** to save memos to your Google Drive. Memos are stored in a folder you choose (set `GOOGLE_DRIVE_MEMOS_FOLDER_ID` in Vercel). Only you can see or delete them. See **[GOOGLE_DRIVE_SETUP.md](./GOOGLE_DRIVE_SETUP.md)** for OAuth and folder setup. No secrets go in the repo.
+
+---
+
+## Deploy on Vercel
+
 **Want a real website URL?** Use the full walkthrough: **[SETUP_GITHUB_AND_VERCEL.md](./SETUP_GITHUB_AND_VERCEL.md)** — step-by-step instructions to put the project on GitHub, then deploy on Vercel (written for non-engineers). You’ll get a link like `https://your-app.vercel.app` to use in your browser.
 
 ---
