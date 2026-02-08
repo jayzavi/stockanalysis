@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0a0a0f;
+  --foreground: #e4e4e7;
+  --card: #14141c;
+  --muted: #71717a;
+  --accent: #22c55e;
+  --accent-muted: #16a34a;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.prose-memo h1,
+.prose-memo h2,
+.prose-memo h3 {
+  @apply font-semibold mt-4 mb-2;
+}
+.prose-memo p {
+  @apply my-2 leading-relaxed;
+}
+.prose-memo ul,
+.prose-memo ol {
+  @apply my-2 pl-6;
+}
+.prose-memo li {
+  @apply my-0.5;
+}
+.prose-memo strong {
+  @apply font-semibold text-zinc-200;
+}
+.prose-memo a {
+  @apply text-emerald-400 underline underline-offset-2;
+}

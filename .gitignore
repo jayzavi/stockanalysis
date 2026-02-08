@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Env files (keep API keys private)
+.env
+.env.local
+.env*.local
+
+# Next.js
+.next/
+out/
+
+# Misc
+.DS_Store
+*.pem
