@@ -28,8 +28,10 @@ function formatGeneratedAt(iso: string): string {
   return `${date} at ${time}`;
 }
 
+const DEFAULT_RESEARCH_ASK = `Please analyze the last 4 earnings release and earnings call transcripts for each of these companies - PANW, CRWD, ZS, RBRK and the past year's stock reaction. Then zoom out , look at the macro trends impacting Cybersecurity, Software sector, think about the trajectory of these businesses over the next year. Taking all of that into account, please provide an executive summary on what will the likely performance and narrative and stock performance of these businesses be? What is the upside and downside case scenarios? How do you bound that - be explicit with your assumptions and reasoning and please generate all of the above to prepare for rigorous debate and critique.`;
+
 export default function Home() {
-  const [researchAsk, setResearchAsk] = useState("");
+  const [researchAsk, setResearchAsk] = useState(DEFAULT_RESEARCH_ASK);
   const [state, setState] = useState<ResearchState>("idle");
   const [result, setResult] = useState<MemoResult | null>(null);
   const [error, setError] = useState<string | null>(null);
