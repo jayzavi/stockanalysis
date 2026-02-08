@@ -51,6 +51,21 @@ export default function Home() {
       .catch(() => setHistoryMemos([]));
   }, [status]);
 
+  // After OAuth redirect, cookie may be set but first paint had no session — refetch and reload once if we find a session
+  useEffect(() => {
+    if (status !== "unauthenticated") return;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        if (data?.user) window.location.reload();
+      } catch {
+        // ignore
+      }
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [status]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!researchAsk.trim()) return;
