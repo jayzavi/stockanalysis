@@ -245,6 +245,9 @@ export default function Home() {
             className="w-full h-28 px-4 py-3 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 dark:focus:ring-[#ccff00]/50 dark:focus:border-[#ccff00] resize-none transition-colors"
             disabled={state === "loading"}
           />
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+            {researchAsk.length.toLocaleString()} characters
+          </p>
           <button
             type="submit"
             disabled={state === "loading" || !researchAsk.trim()}
