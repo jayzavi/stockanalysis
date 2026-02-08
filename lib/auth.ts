@@ -2,9 +2,8 @@ import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
 const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-const GOOGLE_DOCS_SCOPE = "https://www.googleapis.com/auth/documents";
-// Must include openid email profile so NextAuth gets user info; add Drive + Docs on top
-const GOOGLE_SCOPE = `openid email profile ${GOOGLE_DRIVE_SCOPE} ${GOOGLE_DOCS_SCOPE}`;
+// Must include openid email profile so NextAuth gets user info; add Drive on top
+const GOOGLE_SCOPE = `openid email profile ${GOOGLE_DRIVE_SCOPE}`;
 
 export const authOptions: NextAuthOptions = {
   providers: [
