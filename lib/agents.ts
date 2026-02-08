@@ -140,12 +140,21 @@ export async function runChairman(
   ], { temperature: 0.3, maxTokens: 2048 });
 }
 
+/** Use only the "Data for analysis" portion for Tavily search; omit "Memo goal". */
+function extractDataForAnalysisSection(researchAsk: string): string {
+  const trimmed = researchAsk.trim();
+  const dataMatch = trimmed.match(/Data for analysis:\s*([\s\S]*?)(?=\s*Memo goal:|$)/i);
+  const section = dataMatch?.[1]?.trim() ?? trimmed;
+  return section;
+}
+
 export async function runResearchPipeline(researchAsk: string): Promise<{
   memo: string;
   specialistOutputs: { name: string; raw: string; parsed: SpecialistOutput | null }[];
 }> {
+  const dataSection = extractDataForAnalysisSection(researchAsk);
   const suffix = " stock price technical analysis institutional";
-  const searchQuery = (researchAsk.trim() + suffix).slice(0, 400);
+  const searchQuery = (dataSection + suffix).slice(0, 400);
   const searchResults = await webSearch(searchQuery, { maxResults: 10 });
   const searchContext = formatSearchContext(searchResults);
 

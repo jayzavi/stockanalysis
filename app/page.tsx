@@ -39,7 +39,9 @@ function oneLineDescription(researchAsk: string): string {
   return first.length > 120 ? first.slice(0, 117) + "…" : first;
 }
 
-const DEFAULT_RESEARCH_ASK = `Please analyze the last 4 earnings release and earnings call transcripts for each of these companies - PANW, CRWD, ZS, RBRK and the past year's stock reaction. Then zoom out , look at the macro trends impacting Cybersecurity, Software sector, think about the trajectory of these businesses over the next year. Taking all of that into account, please provide an executive summary on what will the likely performance and narrative and stock performance of these businesses be? What is the upside and downside case scenarios? How do you bound that - be explicit with your assumptions and reasoning and please generate all of the above to prepare for rigorous debate and critique.`;
+const DEFAULT_RESEARCH_ASK = `Data for analysis: Analyze last 4 earnings release, call transcripts, and stock performance for PANW, CRWD, ZS, RBRK. Look at macro trends for Cybersecurity, Software sector, think about trajectory of these businesses over the next year.
+
+Memo goal: Provide an executive summary on likely performance, narrative and stock performance of these businesses for next earnings. Note upside and downside scenarios. Be explicit with assumptions, reasoning. Memo should help rigorous debate and critique.`;
 
 type Tab = "research" | "previous";
 
