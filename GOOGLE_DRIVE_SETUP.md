@@ -16,8 +16,9 @@ If you already have a Google Cloud project and OAuth 2.0 credentials from anothe
      - **Local (optional):** `http://localhost:3000/api/auth/callback/google`
    - Save.
 
-2. **Enable Google Drive API** for that same project (if not already):
+2. **Enable Google Drive API and Google Docs API** for that same project (if not already):
    - **APIs & Services** → **Library** → search **Google Drive API** → **Enable**.
+   - Search **Google Docs API** → **Enable** (needed so memos are saved as readable Docs).
 
 3. **Use the same credentials in this app’s env:**
    - In **Vercel** → this project (Jay Money Insights / Stock Analysis) → **Settings** → **Environment Variables**, set:
@@ -35,7 +36,7 @@ That’s it. No new OAuth client or new project needed.
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/).
 2. Create a project or select one.
-3. **APIs & Services** → **Library** → search **Google Drive API** → **Enable**.
+3. **APIs & Services** → **Library** → search **Google Drive API** → **Enable**. Also enable **Google Docs API** (so memos are saved as readable Docs).
 4. **APIs & Services** → **Credentials** → **Create Credentials** → **OAuth client ID**.
 5. If prompted, configure the OAuth consent screen (External, add your email as test user).
 6. Application type: **Web application**.
@@ -67,7 +68,15 @@ Do **not** put these in the repo. The repo stays public; secrets live only in Ve
 **If you sign in with Google but the app still shows "Sign in with Google":**  
 Set `NEXTAUTH_URL` in Vercel to the **exact** URL you use to open the app (e.g. `https://stockanalysis-xxx.vercel.app`), with **no trailing slash**. If you use a custom domain, use that. The app uses `trustHost` so the callback and cookies match your deployment URL.
 
-## 4. Security
+## 4. What you’ll see in Drive
+
+Each saved memo creates two items in your folder:
+- A **Google Doc** (e.g. “Jay Money Insights – Run abc123 – February 7 2026”) with the memo text formatted like the app (title, date, Backdrop, memo body). Open this to read the memo.
+- A small **.json** file used by the app for history and delete. You can ignore or hide it.
+
+The app requests **Google Docs API** scope so it can create these Docs. If you signed in before this was added, sign out and sign in again to grant the new scope.
+
+## 5. Security
 
 - Only you can access the Drive folder; the app uses your Google account after you click “Sign in with Google”.
 - Deleting a memo in the app deletes the file in Drive. “Delete all” removes all memo files from that folder.
