@@ -4,7 +4,6 @@ import GoogleProvider from "next-auth/providers/google";
 const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 
 export const authOptions: NextAuthOptions = {
-  trustHost: true, // Required for session to persist on Vercel (trust request host for cookies/redirects)
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
