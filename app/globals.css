@@ -2,13 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Robinhood-inspired: black, white/neutrals, Robin Neon (#CCFF00) accent */
 :root {
-  --background: #0a0a0f;
-  --foreground: #e4e4e7;
-  --card: #14141c;
-  --muted: #71717a;
-  --accent: #22c55e;
-  --accent-muted: #16a34a;
+  --background: #000000;
+  --foreground: #fafafa;
+  --card: #0c0c0c;
+  --card-elevated: #171717;
+  --border: #262626;
+  --muted: #a3a3a3;
+  --accent: #ccff00;
+  --accent-hover: #b8e600;
 }
 
 body {
@@ -19,21 +22,28 @@ body {
 .prose-memo h1,
 .prose-memo h2,
 .prose-memo h3 {
-  @apply font-semibold mt-4 mb-2;
+  @apply font-semibold mt-4 mb-2 text-neutral-100;
 }
 .prose-memo p {
-  @apply my-2 leading-relaxed;
+  @apply my-2 leading-relaxed text-neutral-300;
 }
 .prose-memo ul,
 .prose-memo ol {
-  @apply my-2 pl-6;
+  @apply my-2 pl-6 text-neutral-300;
 }
 .prose-memo li {
   @apply my-0.5;
 }
 .prose-memo strong {
-  @apply font-semibold text-zinc-200;
+  @apply font-semibold text-neutral-100;
 }
 .prose-memo a {
-  @apply text-emerald-400 underline underline-offset-2;
+  color: var(--accent);
+  @apply underline underline-offset-2;
+}
+
+/* Report Backdrop: subtle dark with Robin Neon accent */
+.report-backdrop {
+  background: rgba(12, 12, 12, 0.8);
+  border-left: 4px solid var(--accent);
 }

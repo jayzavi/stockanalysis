@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { runResearchPipelineOrMock } from "@/lib/agents";
 
@@ -14,8 +15,14 @@ export async function POST(request: NextRequest) {
       );
     }
     const { memo, specialistOutputs } = await runResearchPipelineOrMock(researchAsk);
+    const generatedAt = new Date().toISOString();
+    const runId = randomBytes(4).toString("hex");
     return NextResponse.json({
       memo,
+      researchAsk,
+      generatedAt,
+      runId,
+      models: "gpt-4o / claude-opus-4 / gemini-2.0-flash",
       specialistOutputs: specialistOutputs.map((o) => ({
         name: o.name,
         parsed: o.parsed,

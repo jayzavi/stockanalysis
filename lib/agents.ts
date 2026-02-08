@@ -80,16 +80,30 @@ export async function runSpecialist(
   return { name: name.toUpperCase(), raw, parsed };
 }
 
-const CHAIRMAN_SYSTEM = `You are the Chairman synthesizing three specialist reports into one executive research memo.
+const CHAIRMAN_SYSTEM = `You are the Chairman synthesizing three specialist reports into one executive research memo. Match this structure and tone:
+
+1. **Executive Chairman Summary**
+   - Start with a subheading: "Council synthesis (as of [today's date])".
+   - In 2–4 short paragraphs: consensus view on what the data and specialists imply; how the market is pricing the name(s); key recommendation or outlook. Use clear, analytical language (e.g. "this earnings season did not disprove X; it repriced Y through the lens of Z"). Do not invent data; use only the three specialist JSON reports.
+
+2. **What the [research context] collectively said**
+   - Subheading that reflects the ask (e.g. "What the last four quarters of hyperscaler releases + transcripts collectively said" or "What the technical and flow data collectively said").
+   - **Shared through-lines:** A numbered list (1., 2., 3....) of themes that appear across the specialists. Each point: one bold short title, then 1–3 sentences with specific numbers or facts. Where the specialists cited sources, include inline citations as [title](url) using the citations from their JSON. Example: "Demand > supply (still): management teams describe capacity as a constraint, with 2026 capex guides at X; see [Source Title](https://...)."
+
+3. **Technical View**
+   - Short section: consensus on trend, key levels, and risk. Again cite from specialist reports where relevant.
+
+4. **Key Risks**
+   - Bullet list of main risks, bounded by what the specialists actually said.
+
+5. **Bottom Line**
+   - One sentence: explicit upside/downside or recommendation.
 
 Rules:
 - Output only Markdown. No code blocks around the markdown.
 - Maximum length: 2 pages when printed (roughly 800–1000 words). Be concise.
-- Start with an Executive Summary (consensus view and key recommendation/outlook).
-- Then briefly summarize agreement and disagreement across the three specialists.
-- Include a short Technical View section (consensus on trend, levels, risk).
-- End with Key Risks and a one-sentence Bottom Line.
-- Do not invent data; base everything on the three JSON reports.`;
+- Every material claim should be traceable to the specialist reports; use their citations (title + URL) for sources.
+- Do not invent data.`;
 
 function buildChairmanUserPrompt(
   researchAsk: string,
@@ -167,38 +181,44 @@ const MOCK_SPECIALIST: SpecialistOutput = {
   confidence_score: 0.72,
 };
 
-const MOCK_MEMO = `# Executive Summary
+const MOCK_MEMO = `## Executive Chairman Summary
 
-**Consensus view (mock):** The council’s view is illustrative only while the app runs in mock mode. Once live agents are enabled, this section will reflect a synthesized view from Agent Alpha (Claude), Agent Beta (GPT), and Agent Gamma (Gemini) based on web search and technical analysis.
+**Council synthesis (as of [date]):** The council’s view is illustrative only while the app runs in mock mode. Once live agents are enabled, this section will reflect a synthesized view from Agent Alpha (Claude), Agent Beta (GPT), and Agent Gamma (Gemini) based on web search and technical analysis. Businesses would be described as healthy-to-strong or otherwise, with the market trading on visibility into revenue and margins; key recommendation and outlook would be stated here.
 
 **Recommendation:** Use mock mode for UI development; switch to live APIs when ready for real research memos.
 
 ---
 
-## Agreement & Disagreement Across Specialists
+## What the research collectively said
 
-In mock mode, all three specialists return the same hardcoded structure. In production, the Chairman will summarize where Alpha, Beta, and Gamma agree (e.g., trend direction, key levels) and where they differ (e.g., confidence, time horizon).
+**Shared through-lines (mock):**
+
+1. **Demand vs. supply:** In live runs, specialist reports would summarize capacity, capex guides, and utilization; citations would link to earnings or filings, e.g. [Example Source 1](https://example.com/1).
+
+2. **Market’s rule change:** Investors would be described as rewarding spend plus a credible conversion path (utilization → unit economics → margins → FCF); one or more post-print reactions would be cited, e.g. [Example Source 2](https://example.com/2).
+
+3. **Technical and flow:** Consensus trend levels, options volume, and institutional flow would be summarized from the three agents with inline citations.
 
 ---
 
 ## Technical View
 
-- **Trend:** Neutral to bullish short-term (mock).
-- **Key levels:** Support/resistance and moving averages would be consensus from live specialist JSON.
-- **Risk:** Volatility and drawdown assumptions would be stated here.
+- **Trend:** Neutral to bullish short-term (mock). In production, consensus from specialist JSON.
+- **Key levels:** Support/resistance and moving averages from live specialist reports.
+- **Risk:** Volatility and drawdown assumptions from specialist data.
 
 ---
 
 ## Key Risks
 
-- Market risk, sector rotation, and company-specific risks would be listed from live reports.
+- Market risk, sector rotation, and company-specific risks from live reports.
 - In mock mode, no real data is used.
 
 ---
 
 ## Bottom Line
 
-*Mock mode active — enable live agents in \`.env.local\` (\`USE_MOCK_AGENTS=false\`) to generate real executive memos.*
+*Mock mode active — set \`USE_MOCK_AGENTS=false\` to generate real executive memos with live agents.*
 `;
 
 async function runMockResearchPipeline(researchAsk: string): Promise<{
