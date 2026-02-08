@@ -5,10 +5,33 @@ import ReactMarkdown from "react-markdown";
 
 type ResearchState = "idle" | "loading" | "done" | "error";
 
+type MemoResult = {
+  memo: string;
+  researchAsk: string;
+  generatedAt: string;
+  runId: string;
+  models: string;
+};
+
+function formatGeneratedAt(iso: string): string {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  const time = d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${date} at ${time}`;
+}
+
 export default function Home() {
   const [researchAsk, setResearchAsk] = useState("");
   const [state, setState] = useState<ResearchState>("idle");
-  const [memo, setMemo] = useState<string | null>(null);
+  const [result, setResult] = useState<MemoResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -16,7 +39,7 @@ export default function Home() {
     if (!researchAsk.trim()) return;
     setState("loading");
     setError(null);
-    setMemo(null);
+    setResult(null);
     try {
       const res = await fetch("/api/research", {
         method: "POST",
@@ -29,7 +52,13 @@ export default function Home() {
         setState("error");
         return;
       }
-      setMemo(data.memo ?? "");
+      setResult({
+        memo: data.memo ?? "",
+        researchAsk: data.researchAsk ?? researchAsk.trim(),
+        generatedAt: data.generatedAt ?? new Date().toISOString(),
+        runId: data.runId ?? "",
+        models: data.models ?? "",
+      });
       setState("done");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Network error");
@@ -84,13 +113,30 @@ export default function Home() {
           </div>
         )}
 
-        {state === "done" && memo && (
+        {state === "done" && result && (
           <article className="mt-8 rounded-xl border border-zinc-700/80 bg-zinc-900/50 overflow-hidden">
-            <div className="px-5 py-3 border-b border-zinc-700/80 bg-zinc-800/30">
-              <h2 className="text-sm font-medium text-zinc-400">Executive memo</h2>
+            <div className="px-6 py-5 border-b border-zinc-700/80">
+              <h2 className="text-xl font-semibold text-zinc-100 tracking-tight">
+                Jay Money Insights
+              </h2>
+              <p className="text-sm text-zinc-500 mt-1">
+                Generated {formatGeneratedAt(result.generatedAt)}
+                {result.runId && ` | Run ${result.runId}`}
+              </p>
+              <p className="text-sm text-zinc-500 mt-0.5">
+                Models: {result.models}
+              </p>
             </div>
-            <div className="p-5 prose-memo prose-invert max-w-none">
-              <ReactMarkdown>{memo}</ReactMarkdown>
+            <div className="report-backdrop px-6 py-4 border-b border-zinc-700/80">
+              <p className="text-xs font-medium text-sky-300/90 uppercase tracking-wider mb-2">
+                Backdrop
+              </p>
+              <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
+                {result.researchAsk}
+              </p>
+            </div>
+            <div className="p-6 prose-memo prose-invert max-w-none">
+              <ReactMarkdown>{result.memo}</ReactMarkdown>
             </div>
           </article>
         )}
