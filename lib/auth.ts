@@ -2,6 +2,8 @@ import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
 const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+// Must include openid email profile so NextAuth gets user info; add Drive on top
+const GOOGLE_SCOPE = `openid email profile ${GOOGLE_DRIVE_SCOPE}`;
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -10,7 +12,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
       authorization: {
         params: {
-          scope: GOOGLE_DRIVE_SCOPE,
+          scope: GOOGLE_SCOPE,
           access_type: "offline",
           prompt: "consent",
         },
@@ -19,26 +21,35 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, account, profile }) {
-      if (account?.access_token) {
-        token.accessToken = account.access_token;
-        token.refreshToken = account.refresh_token ?? null;
-        token.expiresAt = account.expires_at ?? null;
-      }
-      if (profile?.email) {
-        token.email = profile.email;
-        token.name = profile.name;
-        token.picture = (profile as { picture?: string }).picture;
+      try {
+        if (account?.access_token) {
+          token.accessToken = account.access_token;
+          token.refreshToken = account.refresh_token ?? null;
+          token.expiresAt = account.expires_at ?? null;
+        }
+        const p = profile as { email?: string; name?: string; picture?: string } | undefined;
+        if (p?.email) {
+          token.email = p.email;
+          token.name = p.name;
+          token.picture = p.picture;
+        }
+      } catch {
+        // avoid throwing and causing OAuthCallback error
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.email = (token.email as string) ?? session.user.email;
-        session.user.name = (token.name as string) ?? session.user.name;
-        session.user.image = (token.picture as string) ?? session.user.image;
+      try {
+        if (session.user) {
+          session.user.email = (token.email as string) ?? session.user.email;
+          session.user.name = (token.name as string) ?? session.user.name;
+          session.user.image = (token.picture as string) ?? session.user.image;
+        }
+        (session as { accessToken?: string; refreshToken?: string | null }).accessToken = token.accessToken as string | undefined;
+        (session as { refreshToken?: string | null }).refreshToken = token.refreshToken as string | null | undefined;
+      } catch {
+        // avoid throwing
       }
-      (session as { accessToken?: string; refreshToken?: string | null }).accessToken = token.accessToken as string | undefined;
-      (session as { refreshToken?: string | null }).refreshToken = token.refreshToken as string | null | undefined;
       return session;
     },
   },
