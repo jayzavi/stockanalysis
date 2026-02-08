@@ -144,7 +144,8 @@ export async function runResearchPipeline(researchAsk: string): Promise<{
   memo: string;
   specialistOutputs: { name: string; raw: string; parsed: SpecialistOutput | null }[];
 }> {
-  const searchQuery = `${researchAsk} stock price technical analysis recent performance institutional`;
+  const suffix = " stock price technical analysis institutional";
+  const searchQuery = (researchAsk.trim() + suffix).slice(0, 400);
   const searchResults = await webSearch(searchQuery, { maxResults: 10 });
   const searchContext = formatSearchContext(searchResults);
 
