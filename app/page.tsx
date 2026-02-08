@@ -169,7 +169,7 @@ export default function Home() {
             value={researchAsk}
             onChange={(e) => setResearchAsk(e.target.value)}
             placeholder="e.g. NVDA technical and fundamental view for the next 3 months; key levels and institutional flow"
-            className="w-full h-28 px-4 py-3 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#ccff00]/50 focus:border-[#ccff00] resize-none transition-colors"
+            className="w-full h-28 px-4 py-3 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 dark:focus:ring-[#ccff00]/50 dark:focus:border-[#ccff00] resize-none transition-colors"
             disabled={state === "loading"}
           />
           <button
@@ -211,7 +211,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setResult(m)}
-                    className="text-left text-sm text-neutral-700 dark:text-neutral-300 hover:text-[#ccff00] truncate flex-1 min-w-0"
+                    className="text-left text-sm text-neutral-700 dark:text-neutral-300 hover:text-emerald-700 dark:hover:text-[#ccff00] truncate flex-1 min-w-0"
                   >
                     Run {m.runId} · {formatGeneratedAt(m.generatedAt)}
                   </button>
@@ -244,7 +244,7 @@ export default function Home() {
               </p>
             </div>
             <div className="report-backdrop px-6 py-4 border-b border-neutral-200 dark:border-neutral-800">
-              <p className="text-xs font-medium text-[#ccff00] uppercase tracking-wider mb-2">
+              <p className="text-xs font-medium text-emerald-800 dark:text-[#ccff00] uppercase tracking-wider mb-2">
                 Backdrop
               </p>
               <p className="text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap">

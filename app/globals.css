@@ -50,14 +50,17 @@ body {
 .prose-memo strong {
   @apply font-semibold text-neutral-900 dark:text-neutral-100;
 }
+/* Links: dark green in light mode (readable), Robin Neon in dark */
 .prose-memo a {
+  @apply underline underline-offset-2 text-emerald-700;
+}
+.dark .prose-memo a {
   color: var(--accent);
-  @apply underline underline-offset-2;
 }
 
 .report-backdrop {
   background: rgba(245, 245, 245, 0.9);
-  border-left: 4px solid var(--accent);
+  border-left: 4px solid rgb(5 150 105); /* emerald-600, readable on light */
 }
 .dark .report-backdrop {
   background: rgba(12, 12, 12, 0.8);
