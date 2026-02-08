@@ -24,11 +24,12 @@ export async function POST(req: NextRequest) {
   }
   try {
     const body = await req.json();
-    const { runId, researchAsk, memo, generatedAt, models } = body;
+    const { title, runId, researchAsk, memo, generatedAt, models } = body;
     if (!runId || !researchAsk || !memo || !generatedAt) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
     const created = await createMemo(req, {
+      title: typeof title === "string" && title.trim() ? title.trim() : "Untitled memo",
       runId,
       researchAsk,
       memo,

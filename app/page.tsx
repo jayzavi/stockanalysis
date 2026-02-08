@@ -9,6 +9,7 @@ type ResearchState = "idle" | "loading" | "done" | "error";
 
 type MemoResult = {
   id?: string;
+  title?: string;
   memo: string;
   researchAsk: string;
   generatedAt: string;
@@ -16,7 +17,7 @@ type MemoResult = {
   models: string;
 };
 
-type SavedMemoItem = MemoResult & { id: string };
+type SavedMemoItem = MemoResult & { id: string; title: string };
 
 function formatGeneratedAt(iso: string): string {
   const d = new Date(iso);
@@ -33,10 +34,19 @@ function formatGeneratedAt(iso: string): string {
   return `${date} at ${time}`;
 }
 
+function oneLineDescription(researchAsk: string): string {
+  const first = researchAsk.split(/\n/)[0]?.trim() ?? researchAsk.trim();
+  return first.length > 120 ? first.slice(0, 117) + "…" : first;
+}
+
 const DEFAULT_RESEARCH_ASK = `Please analyze the last 4 earnings release and earnings call transcripts for each of these companies - PANW, CRWD, ZS, RBRK and the past year's stock reaction. Then zoom out , look at the macro trends impacting Cybersecurity, Software sector, think about the trajectory of these businesses over the next year. Taking all of that into account, please provide an executive summary on what will the likely performance and narrative and stock performance of these businesses be? What is the upside and downside case scenarios? How do you bound that - be explicit with your assumptions and reasoning and please generate all of the above to prepare for rigorous debate and critique.`;
+
+type Tab = "research" | "previous";
 
 export default function Home() {
   const { data: session, status } = useSession();
+  const [activeTab, setActiveTab] = useState<Tab>("research");
+  const [memoTitle, setMemoTitle] = useState("");
   const [researchAsk, setResearchAsk] = useState(DEFAULT_RESEARCH_ASK);
   const [state, setState] = useState<ResearchState>("idle");
   const [result, setResult] = useState<MemoResult | null>(null);
@@ -84,7 +94,9 @@ export default function Home() {
         setState("error");
         return;
       }
+      const title = memoTitle.trim() || "Untitled memo";
       const newResult: MemoResult = {
+        title,
         memo: data.memo ?? "",
         researchAsk: data.researchAsk ?? researchAsk.trim(),
         generatedAt: data.generatedAt ?? new Date().toISOString(),
@@ -134,6 +146,11 @@ export default function Home() {
     }
   }
 
+  function openMemo(m: SavedMemoItem) {
+    setResult(m);
+    setActiveTab("research");
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-black">
       <header className="border-b border-neutral-200 dark:border-neutral-800 bg-white/90 dark:bg-neutral-950/80 backdrop-blur">
@@ -174,8 +191,49 @@ export default function Home() {
         </div>
       </header>
 
+      <nav className="border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black">
+        <div className="max-w-4xl mx-auto px-4 flex gap-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab("research")}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "research"
+                ? "border-[#ccff00] text-neutral-900 dark:text-white"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
+            }`}
+          >
+            Research
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("previous")}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "previous"
+                ? "border-[#ccff00] text-neutral-900 dark:text-white"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
+            }`}
+          >
+            Previous Memos
+          </button>
+        </div>
+      </nav>
+
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8">
+        {activeTab === "research" && (
+          <>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <label htmlFor="memo_title" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+            Memo Title
+          </label>
+          <input
+            id="memo_title"
+            type="text"
+            value={memoTitle}
+            onChange={(e) => setMemoTitle(e.target.value)}
+            placeholder="e.g. Cybersecurity names (PANW, CRWD, ZS, RBRK)"
+            className="w-full px-4 py-3 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 dark:focus:ring-[#ccff00]/50 dark:focus:border-[#ccff00] transition-colors"
+            disabled={state === "loading"}
+          />
           <label htmlFor="research_ask" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
             Research Ask
           </label>
@@ -208,42 +266,6 @@ export default function Home() {
           </div>
         )}
 
-        {status === "authenticated" && historyMemos.length > 0 && (
-          <section className="mt-8 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50 overflow-hidden">
-            <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Memo history (Google Drive)</h2>
-              <button
-                type="button"
-                onClick={deleteAllMemos}
-                className="text-xs text-red-600 dark:text-red-400 hover:underline"
-              >
-                Delete all
-              </button>
-            </div>
-            <ul className="divide-y divide-neutral-200 dark:divide-neutral-800 max-h-48 overflow-y-auto">
-              {historyMemos.map((m) => (
-                <li key={m.id} className="px-4 py-2 flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setResult(m)}
-                    className="text-left text-sm text-neutral-700 dark:text-neutral-300 hover:text-emerald-700 dark:hover:text-[#ccff00] truncate flex-1 min-w-0"
-                  >
-                    Run {m.runId} · {formatGeneratedAt(m.generatedAt)}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => deleteMemo(m.id)}
-                    className="text-xs text-neutral-500 hover:text-red-500 shrink-0"
-                    aria-label="Delete memo"
-                  >
-                    Delete
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
         {state === "done" && result && (
           <article className="mt-8 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 overflow-hidden">
             <div className="px-6 py-5 border-b border-neutral-200 dark:border-neutral-800">
@@ -270,6 +292,78 @@ export default function Home() {
               <ReactMarkdown>{result.memo}</ReactMarkdown>
             </div>
           </article>
+        )}
+          </>
+        )}
+
+        {activeTab === "previous" && (
+          <section className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 overflow-hidden">
+            {status !== "authenticated" ? (
+              <div className="px-6 py-12 text-center text-neutral-500 dark:text-neutral-400 text-sm">
+                Sign in with Google to see your previous memos.
+              </div>
+            ) : historyMemos.length === 0 ? (
+              <div className="px-6 py-12 text-center text-neutral-500 dark:text-neutral-400 text-sm">
+                No saved memos yet. Generate a memo on the Research tab and it will appear here.
+              </div>
+            ) : (
+              <>
+                <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between bg-neutral-50 dark:bg-neutral-900/50">
+                  <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Previous memos</h2>
+                  <button
+                    type="button"
+                    onClick={deleteAllMemos}
+                    className="text-xs text-red-600 dark:text-red-400 hover:underline"
+                  >
+                    Delete all
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-neutral-200 dark:border-neutral-800 text-neutral-500 dark:text-neutral-400">
+                        <th className="px-4 py-3 font-medium w-[140px]">Date and Time</th>
+                        <th className="px-4 py-3 font-medium">Name</th>
+                        <th className="px-4 py-3 font-medium min-w-[200px]">Description</th>
+                        <th className="px-4 py-3 font-medium w-[70px]"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historyMemos.map((m) => (
+                        <tr key={m.id} className="border-b border-neutral-100 dark:border-neutral-800/80 hover:bg-neutral-50/50 dark:hover:bg-neutral-900/30">
+                          <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
+                            {formatGeneratedAt(m.generatedAt)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => openMemo(m)}
+                              className="text-emerald-700 dark:text-[#ccff00] font-medium hover:underline text-left"
+                            >
+                              {m.title || "Untitled memo"}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400 max-w-md">
+                            {oneLineDescription(m.researchAsk)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => deleteMemo(m.id)}
+                              className="text-xs text-neutral-500 hover:text-red-500"
+                              aria-label="Delete memo"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </section>
         )}
       </main>
     </div>

@@ -6,12 +6,28 @@ const MEMO_MIME = "application/json";
 
 export type SavedMemo = {
   id: string;
+  title: string;
   runId: string;
   researchAsk: string;
   memo: string;
   generatedAt: string;
   models: string;
 };
+
+function formatDateTimeForFilename(iso: string): string {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  return `${date} ${time}`.replace(/,/g, "").replace(/\s+/g, " ").replace(":", "-");
+}
+
+function sanitizeFileName(name: string): string {
+  return name
+    .replace(/[/\\:*?"<>|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80) || "Memo";
+}
 
 async function getAccessToken(req: NextRequest): Promise<string | null> {
   const token = await getToken({
@@ -54,8 +70,10 @@ export async function listMemos(req: NextRequest): Promise<SavedMemo[]> {
     const contentRes = await driveFetch(accessToken, `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`);
     if (!contentRes.ok) continue;
     try {
-      const memo = (await contentRes.json()) as SavedMemo;
+      const raw = (await contentRes.json()) as Record<string, unknown>;
+      const memo = raw as SavedMemo;
       memo.id = file.id;
+      memo.title = typeof memo.title === "string" ? memo.title : "Untitled memo";
       memos.push(memo);
     } catch {
       // skip invalid JSON
@@ -69,8 +87,12 @@ export async function createMemo(req: NextRequest, memo: Omit<SavedMemo, "id">):
   const accessToken = await getAccessToken(req);
   if (!accessToken || !FOLDER_ID) return null;
 
+  const safeTitle = sanitizeFileName(memo.title || "Memo");
+  const dateTime = formatDateTimeForFilename(memo.generatedAt);
+  const fileName = `${safeTitle} ${dateTime}.json`;
+
   const metadata = {
-    name: `memo-${memo.runId}-${Date.now()}.json`,
+    name: fileName,
     parents: [FOLDER_ID],
     mimeType: MEMO_MIME,
   };
