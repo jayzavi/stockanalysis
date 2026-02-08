@@ -64,6 +64,9 @@ In **Vercel** → your project → **Settings** → **Environment Variables**, a
 
 Do **not** put these in the repo. The repo stays public; secrets live only in Vercel (or local `.env.local`).
 
+**If you sign in with Google but the app still shows "Sign in with Google":**  
+Set `NEXTAUTH_URL` in Vercel to the **exact** URL you use to open the app (e.g. `https://stockanalysis-xxx.vercel.app`), with **no trailing slash**. If you use a custom domain, use that. The app uses `trustHost` so the callback and cookies match your deployment URL.
+
 ## 4. Security
 
 - Only you can access the Drive folder; the app uses your Google account after you click “Sign in with Google”.
