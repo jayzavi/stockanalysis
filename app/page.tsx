@@ -39,9 +39,9 @@ function oneLineDescription(researchAsk: string): string {
   return first.length > 120 ? first.slice(0, 117) + "…" : first;
 }
 
-const DEFAULT_RESEARCH_ASK = `Data for analysis: Analyze last 4 earnings release, call transcripts, and stock performance for PANW, CRWD, ZS, RBRK. Look at macro trends for Cybersecurity, Software sector, think about trajectory of these businesses over the next year.
+const DEFAULT_RESEARCH_ASK = `Data for analysis: ZScaler (ZS) — last 4 earnings, call transcripts, stock performance, cybersecurity sector macro trends, trajectory over next year.
 
-Memo goal: Provide an executive summary on likely performance, narrative and stock performance of these businesses for next earnings. Note upside and downside scenarios. Be explicit with assumptions, reasoning. Explicitly bound uncertainty: what would need to be true for the bull case vs bear case? Include at least one Devil's advocate paragraph challenging the consensus view. Memo should help rigorous debate and critique.`;
+Memo goal: Investment memo on ZScaler with recommendation and conviction.`;
 
 type Tab = "research" | "previous";
 
