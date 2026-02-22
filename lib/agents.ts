@@ -42,16 +42,22 @@ ANALYTICAL FRAMEWORK (cover all of these in data_analysis):
 - Key risks (bull and bear cases)
 - Final recommendation with price target or conviction level
 
-QUANTITATIVE GROUNDING: Every major claim must be accompanied by a data point, ratio, or comparable. "Revenue growth is strong" is not acceptable — "Revenue grew 34% YoY to $4.2B, ahead of the peer median of 18%" is. No vague assertions.
+QUANTITATIVE GROUNDING: Every major claim must be accompanied by a data point, ratio, or comparable from the actual company and sources. Use ONLY real numbers from your research—never placeholder, example, or instructional text from these prompts. Structure: [metric] + [actual number] + [comparison/context].
 
 RECENCY FLAG: For topics where timeliness matters, explicitly note the vintage of your information and flag if you believe material developments may have occurred beyond your knowledge.
 
+INDEPENDENT ANALYSIS (CRITICAL):
+- Form your own analytical opinion. Do NOT simply summarize management commentary or earnings highlights. Challenge management's narrative. Compare to historical trends. Assess what the data actually implies for the business quality and investor.
+- You MUST cover the last 4 quarters of financial performance. Include quarter-over-quarter or YoY trends for key metrics (revenue, margins, billings, etc.). Describe trajectory—is performance improving, deteriorating, or stable? What does that imply?
+- Valuation: If you mention valuation risk or opportunity, provide current multiples (e.g. EV/NTM revenue), historical range, peer comparison, and what it implies about entry point. No generic "valuation risk" without numbers.
+- You may incorporate well-known recent sector events (e.g. sector selloffs, regulatory news, competitor announcements) when you have high confidence—cite as "sector context" and note if not from search. Prioritize search results for company-specific data.
+
 CRITICAL ANALYSIS REQUIREMENTS:
-- Prioritize primary sources (earnings transcripts, SEC filings, 10-Ks, investor presentations) over news summaries or blog posts. When sources are secondary or thin, say so explicitly and lower your confidence_score.
-- Be critical: challenge weak claims, note when sources conflict or lack evidence. Do not simply summarize—analyze, interpret, and flag gaps.
-- If the search results are low quality (generic news, opinion pieces, thin data), acknowledge it and reflect that in confidence_score (0.3–0.5). Do not dress up weak sources as strong analysis.
-- Use the provided web search results and any user-provided documents for data. Cite web sources by title and URL in citations; cite user documents as "[filename] (user-provided)". If the search results and documents do not cover a topic, say so briefly and do not invent data.
-- When sources conflict, say so: "Source A says X; Source B says Y. The discrepancy suggests [interpretation]."
+- Prioritize primary sources (earnings transcripts, SEC filings, 10-Ks, investor presentations) over news summaries. When sources are secondary or thin, say so and lower confidence_score.
+- Be critical: challenge weak claims, note conflicts. Do not summarize—analyze, interpret, flag gaps.
+- If search results are low quality, acknowledge it and reflect in confidence_score (0.3–0.5). Do not dress up weak sources.
+- Use the provided web search results and user-provided documents for company-specific data. Cite by title and URL. If search does not cover a topic, say so. Do not invent numbers.
+- When sources conflict, say so and interpret.
 - End data_analysis with: "What would change my view: [catalyst or data point]."
 
 Your response must be a single valid JSON object with this exact structure (no code block, no \`\`\`json):
@@ -87,7 +93,7 @@ function buildSpecialistUserPrompt(
       : "";
 
   return `Research ask: ${researchAsk}
-${attachmentBlock}Web search results (use only these for web sources; cite in citations. Be critical about source quality.):
+${attachmentBlock}Web search results (prioritize these for company-specific data; cite in citations. Form an independent analytical opinion—do not just summarize. Cover 4 quarters, valuation nuance, trajectory.):
 
 ${searchContext}
 
@@ -148,9 +154,11 @@ Explicit, justified, actionable. Price target or conviction level.
 
 const CHAIRMAN_SYSTEM = `You are the senior PM who has read three smart analysts' views and must now decide. Your job is synthesis and judgment, not recap. Where specialists disagree: explain why one argument is more compelling. Where they agree: assess whether that consensus is well-founded or groupthink.
 
-QUANTITATIVE GROUNDING: Every major claim must have a data point, ratio, or comparable. "Revenue growth is strong" is not acceptable — "Revenue grew 34% YoY to $4.2B, ahead of the peer median of 18%" is.
+ORIGINAL ANALYSIS: Each section must add distinct value. Avoid redundancy—do not repeat the same points across sections. Push beyond management commentary: what does the data imply? Trajectory of financial performance over 4 quarters? Valuation: current multiples, historical range, peer comparison, entry point implications. No generic statements without quantitative backing.
 
-RECENCY FLAG: For topics where timeliness matters, note the vintage of information and flag if material developments may have occurred beyond the specialists' knowledge.
+QUANTITATIVE GROUNDING: Every major claim must have a data point, ratio, or comparable from the specialist reports. Use ONLY real numbers—never placeholder or example text.
+
+RECENCY FLAG: Note vintage of information and flag if material developments may have occurred beyond the specialists' knowledge.
 
 FORMATTING — USE THIS EXACT TEMPLATE (locked in code, not your discretion):
 ${MEMO_TEMPLATE}
@@ -222,11 +230,14 @@ export async function runResearchPipeline(
 }> {
   const dataSection = extractDataForAnalysisSection(researchAsk);
   const searchQueries = [
-    dataSection + " earnings transcript 10-K SEC filing",
-    dataSection + " stock price technical analysis institutional flow",
-    dataSection + " sector macro trends outlook",
+    { query: dataSection + " Q1 Q2 Q3 Q4 earnings transcript last 4 quarters 10-K 10-Q SEC filing", options: { maxResults: 8 } },
+    { query: dataSection + " valuation multiples P/E EV revenue historical peer comparison", options: { maxResults: 6 } },
+    { query: dataSection + " stock price technical analysis institutional flow", options: { maxResults: 6 } },
+    { query: dataSection + " sector macro trends competitive dynamics", options: { maxResults: 6 } },
+    { query: dataSection + " cybersecurity software stocks news", options: { topic: "news" as const, timeRange: "week" as const, maxResults: 6 } },
+    { query: dataSection + " analyst rating price target", options: { maxResults: 5 } },
   ];
-  const searchResults = await webSearchMulti(searchQueries, { maxResults: 15 });
+  const searchResults = await webSearchMulti(searchQueries);
   const searchContext = formatSearchContext(searchResults);
   const attachmentContext = formatAttachmentContext(attachments);
 

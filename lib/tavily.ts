@@ -27,6 +27,7 @@ export type WebSearchOptions = {
   topic?: "general" | "news" | "finance";
   includeDomains?: string[];
   excludeDomains?: string[];
+  timeRange?: "day" | "week" | "month" | "year" | "d" | "w" | "m" | "y";
 };
 
 export async function webSearch(
@@ -51,6 +52,9 @@ export async function webSearch(
   if (options?.includeDomains && options.includeDomains.length > 0) {
     searchParams.include_domains = options.includeDomains;
   }
+  if (options?.timeRange) {
+    searchParams.time_range = options.timeRange;
+  }
 
   const response = await tvly.search(query, searchParams as Record<string, unknown>);
 
@@ -67,11 +71,13 @@ export async function webSearch(
 
 /** Run multiple searches in parallel and merge results, deduped by URL. */
 export async function webSearchMulti(
-  queries: string[],
-  options?: WebSearchOptions
+  queries: { query: string; options?: Partial<WebSearchOptions> }[],
+  baseOptions?: WebSearchOptions
 ): Promise<SearchResult[]> {
   const resultsArrays = await Promise.all(
-    queries.map((q) => webSearch(q.slice(0, 350), { ...options, maxResults: 5 }))
+    queries.map(({ query, options }) =>
+      webSearch(query.slice(0, 350), { ...baseOptions, ...options, maxResults: options?.maxResults ?? baseOptions?.maxResults ?? 6 })
+    )
   );
   const seen = new Set<string>();
   const merged: SearchResult[] = [];
