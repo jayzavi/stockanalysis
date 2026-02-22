@@ -41,7 +41,7 @@ function oneLineDescription(researchAsk: string): string {
 
 const DEFAULT_RESEARCH_ASK = `Data for analysis: Analyze last 4 earnings release, call transcripts, and stock performance for PANW, CRWD, ZS, RBRK. Look at macro trends for Cybersecurity, Software sector, think about trajectory of these businesses over the next year.
 
-Memo goal: Provide an executive summary on likely performance, narrative and stock performance of these businesses for next earnings. Note upside and downside scenarios. Be explicit with assumptions, reasoning. Memo should help rigorous debate and critique.`;
+Memo goal: Provide an executive summary on likely performance, narrative and stock performance of these businesses for next earnings. Note upside and downside scenarios. Be explicit with assumptions, reasoning. Explicitly bound uncertainty: what would need to be true for the bull case vs bear case? Include at least one Devil's advocate paragraph challenging the consensus view. Memo should help rigorous debate and critique.`;
 
 type Tab = "research" | "previous";
 
@@ -50,6 +50,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("research");
   const [memoTitle, setMemoTitle] = useState("");
   const [researchAsk, setResearchAsk] = useState(DEFAULT_RESEARCH_ASK);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [state, setState] = useState<ResearchState>("idle");
   const [result, setResult] = useState<MemoResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +79,17 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [status]);
 
+  function handleAttachmentChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files?.length) return;
+    setAttachments((prev) => [...prev, ...Array.from(files)]);
+    e.target.value = "";
+  }
+
+  function removeAttachment(index: number) {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!researchAsk.trim()) return;
@@ -85,11 +97,22 @@ export default function Home() {
     setError(null);
     setResult(null);
     try {
-      const res = await fetch("/api/research", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ research_ask: researchAsk.trim() }),
-      });
+      let res: Response;
+      if (attachments.length > 0) {
+        const formData = new FormData();
+        formData.set("research_ask", researchAsk.trim());
+        attachments.forEach((f) => formData.append("attachments", f));
+        res = await fetch("/api/research", {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        res = await fetch("/api/research", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ research_ask: researchAsk.trim() }),
+        });
+      }
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Request failed");
@@ -107,6 +130,7 @@ export default function Home() {
       };
       setResult(newResult);
       setState("done");
+      setAttachments([]);
       if (session) {
         try {
           await fetch("/api/memos", {
@@ -126,6 +150,7 @@ export default function Home() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Network error");
       setState("error");
+      setAttachments([]);
     }
   }
 
@@ -250,6 +275,42 @@ export default function Home() {
           <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
             {researchAsk.length.toLocaleString()} characters
           </p>
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Attachments (optional)
+            </label>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">
+              Upload .txt, .md, or .pdf files to include in the research. Content will be extracted and passed to all agents.
+            </p>
+            <input
+              type="file"
+              accept=".txt,.md,.pdf"
+              multiple
+              onChange={handleAttachmentChange}
+              disabled={state === "loading"}
+              className="block w-full text-sm text-neutral-600 dark:text-neutral-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-neutral-200 dark:file:bg-neutral-700 file:text-neutral-800 dark:file:text-neutral-200 hover:file:bg-neutral-300 dark:hover:file:bg-neutral-600"
+            />
+            {attachments.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {attachments.map((f, i) => (
+                  <li key={`${f.name}-${i}`} className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+                    <span className="truncate flex-1">{f.name}</span>
+                    <span className="text-xs text-neutral-500">({(f.size / 1024).toFixed(1)} KB)</span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(i)}
+                      disabled={state === "loading"}
+                      className="text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           <button
             type="submit"
             disabled={state === "loading" || !researchAsk.trim()}
@@ -272,28 +333,28 @@ export default function Home() {
         )}
 
         {state === "done" && result && (
-          <article className="mt-8 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 overflow-hidden">
-            <div className="px-6 py-5 border-b border-neutral-200 dark:border-neutral-800">
-              <h2 className="text-xl font-semibold text-neutral-900 dark:text-white tracking-tight">
+          <article className="mt-8 memo-document rounded-lg border border-neutral-200 dark:border-neutral-800 overflow-hidden print:shadow-none">
+            <header className="px-8 py-6 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/30">
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-white tracking-tight">
                 Jay Money Insights
               </h2>
-              <p className="text-sm text-neutral-500 mt-1">
+              <p className="text-xs text-neutral-500 mt-1">
                 Generated {formatGeneratedAt(result.generatedAt)}
-                {result.runId && ` | Run ${result.runId}`}
+                {result.runId && ` · Run ${result.runId}`}
               </p>
-              <p className="text-sm text-neutral-500 mt-0.5">
-                Models: {result.models}
+              <p className="text-xs text-neutral-500">
+                {result.models}
               </p>
-            </div>
-            <div className="report-backdrop px-6 py-4 border-b border-neutral-200 dark:border-neutral-800">
+            </header>
+            <div className="report-backdrop px-8 py-4 border-b border-neutral-200 dark:border-neutral-800">
               <p className="text-xs font-medium text-emerald-800 dark:text-[#ccff00] uppercase tracking-wider mb-2">
-                Backdrop
+                Research Context
               </p>
               <p className="text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap">
                 {result.researchAsk}
               </p>
             </div>
-            <div className="p-6 prose-memo max-w-none">
+            <div className="px-8 py-8 prose-memo max-w-3xl">
               <ReactMarkdown>{result.memo}</ReactMarkdown>
             </div>
           </article>

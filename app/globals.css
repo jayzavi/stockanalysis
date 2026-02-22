@@ -31,31 +31,69 @@ body {
   background: var(--background);
 }
 
-/* Prose: adapt to theme */
+/* Prose: memo-style document, not chat */
+.prose-memo {
+  @apply text-[15px] leading-[1.6];
+  font-family: Georgia, "Times New Roman", serif;
+}
 .prose-memo h1,
 .prose-memo h2,
 .prose-memo h3 {
-  @apply font-semibold mt-4 mb-2 text-neutral-900 dark:text-neutral-100;
+  @apply font-semibold mt-6 mb-2 text-neutral-900 dark:text-neutral-100;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+}
+.prose-memo h2:first-child,
+.prose-memo h3:first-child {
+  @apply mt-0;
 }
 .prose-memo p {
-  @apply my-2 leading-relaxed text-neutral-700 dark:text-neutral-300;
+  @apply my-3 leading-relaxed text-neutral-800 dark:text-neutral-200;
+  text-align: justify;
+  hyphens: auto;
 }
 .prose-memo ul,
 .prose-memo ol {
-  @apply my-2 pl-6 text-neutral-700 dark:text-neutral-300;
+  @apply my-3 pl-6 text-neutral-800 dark:text-neutral-200;
 }
 .prose-memo li {
-  @apply my-0.5;
+  @apply my-1;
 }
 .prose-memo strong {
   @apply font-semibold text-neutral-900 dark:text-neutral-100;
 }
-/* Links: dark green in light mode (readable), Robin Neon in dark */
 .prose-memo a {
   @apply underline underline-offset-2 text-emerald-700;
 }
 .dark .prose-memo a {
   color: var(--accent);
+}
+.prose-memo hr {
+  @apply my-4 border-neutral-200 dark:border-neutral-700;
+}
+
+/* Memo container: document-like */
+.memo-document {
+  @apply bg-white dark:bg-neutral-950;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.dark .memo-document {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Print: memo-to-PDF styling */
+@media print {
+  .memo-document {
+    box-shadow: none;
+    border: 1px solid #e5e5e5;
+  }
+  .prose-memo {
+    font-size: 11pt;
+  }
+  .prose-memo p {
+    text-align: left;
+  }
 }
 
 .report-backdrop {

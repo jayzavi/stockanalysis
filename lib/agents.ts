@@ -1,5 +1,5 @@
 import { chat } from "./openrouter";
-import { webSearch, type SearchResult } from "./tavily";
+import { webSearchMulti, type SearchResult } from "./tavily";
 
 export const MODELS = {
   alpha: process.env.OPENROUTER_MODEL_ALPHA ?? "anthropic/claude-sonnet-4",
@@ -10,6 +10,7 @@ export const MODELS = {
 
 export type SpecialistOutput = {
   data_analysis: string;
+  key_assumptions_and_confidence?: string;
   technical_analysis: {
     trend_levels: string;
     stochastic_indicators: string;
@@ -30,13 +31,33 @@ function formatSearchContext(results: SearchResult[]): string {
     .join("\n\n---\n\n");
 }
 
-const SPECIALIST_SYSTEM = `You are a quantitative equity research analyst. You produce structured JSON only, no markdown or extra text.
+const SPECIALIST_SYSTEM = `You are a senior analyst at a top-tier technology-focused hedge fund with 15 years of experience evaluating sector investments. Your deep expertise is in the sector(s) and companies referenced in the research ask. Your job is to produce a rigorous, opinionated investment memo — not a balanced summary. You are expected to take a clear position and defend it. You produce structured JSON only, no markdown or extra text.
 
-Use ONLY the provided web search results for data. Cite sources by including their title and URL in the citations array. If the search results do not cover a topic, say so briefly and do not invent data.
+ANALYTICAL FRAMEWORK (cover all of these in data_analysis):
+- Business model quality
+- Competitive moat
+- Financial profile and how it's evolving over time
+- Unit economics
+- Management quality
+- Key risks (bull and bear cases)
+- Final recommendation with price target or conviction level
+
+QUANTITATIVE GROUNDING: Every major claim must be accompanied by a data point, ratio, or comparable. "Revenue growth is strong" is not acceptable — "Revenue grew 34% YoY to $4.2B, ahead of the peer median of 18%" is. No vague assertions.
+
+RECENCY FLAG: For topics where timeliness matters, explicitly note the vintage of your information and flag if you believe material developments may have occurred beyond your knowledge.
+
+CRITICAL ANALYSIS REQUIREMENTS:
+- Prioritize primary sources (earnings transcripts, SEC filings, 10-Ks, investor presentations) over news summaries or blog posts. When sources are secondary or thin, say so explicitly and lower your confidence_score.
+- Be critical: challenge weak claims, note when sources conflict or lack evidence. Do not simply summarize—analyze, interpret, and flag gaps.
+- If the search results are low quality (generic news, opinion pieces, thin data), acknowledge it and reflect that in confidence_score (0.3–0.5). Do not dress up weak sources as strong analysis.
+- Use the provided web search results and any user-provided documents for data. Cite web sources by title and URL in citations; cite user documents as "[filename] (user-provided)". If the search results and documents do not cover a topic, say so briefly and do not invent data.
+- When sources conflict, say so: "Source A says X; Source B says Y. The discrepancy suggests [interpretation]."
+- End data_analysis with: "What would change my view: [catalyst or data point]."
 
 Your response must be a single valid JSON object with this exact structure (no code block, no \`\`\`json):
 {
-  "data_analysis": "string: analysis directly addressing the research ask, with numbers and time frames from the sources",
+  "data_analysis": "string: analytical, opinionated analysis covering the framework above. Every major claim must have a data point, ratio, or comparable. End with 'What would change my view: [catalyst or data point]'.",
+  "key_assumptions_and_confidence": "string: MANDATORY. Distinguish what you know with high confidence vs. what you're inferring. List 2-4 key assumptions and your confidence level (high/medium/low) for each. Flag any areas where data vintage or recency may be a concern.",
   "technical_analysis": {
     "trend_levels": "string: key support/resistance, moving averages, trend context",
     "stochastic_indicators": "string: RSI, stochastics, momentum if available from sources",
@@ -45,13 +66,28 @@ Your response must be a single valid JSON object with this exact structure (no c
     "summary_view": "string: 2-3 sentence quant view of technical setup"
   },
   "citations": [{"title": "string", "url": "string"}],
-  "confidence_score": number between 0 and 1
+  "confidence_score": number between 0 and 1 (lower when sources are thin or secondary)
 }`;
 
-function buildSpecialistUserPrompt(researchAsk: string, searchContext: string): string {
-  return `Research ask: ${researchAsk}
+function formatAttachmentContext(attachments: { name: string; content: string }[]): string {
+  if (attachments.length === 0) return "";
+  return attachments
+    .map((a) => `--- ${a.name} ---\n${a.content}`)
+    .join("\n\n");
+}
 
-Web search results (use only these; cite in citations):
+function buildSpecialistUserPrompt(
+  researchAsk: string,
+  searchContext: string,
+  attachmentContext: string
+): string {
+  const attachmentBlock =
+    attachmentContext.trim().length > 0
+      ? `\nUser-provided documents (use these in addition to web search; cite as "[filename] (user-provided)" in citations):\n\n${attachmentContext}\n\n`
+      : "";
+
+  return `Research ask: ${researchAsk}
+${attachmentBlock}Web search results (use only these for web sources; cite in citations. Be critical about source quality.):
 
 ${searchContext}
 
@@ -61,10 +97,11 @@ Produce your analysis as a single JSON object with the exact schema described in
 export async function runSpecialist(
   name: "alpha" | "beta" | "gamma",
   researchAsk: string,
-  searchContext: string
+  searchContext: string,
+  attachmentContext: string = ""
 ): Promise<{ name: string; raw: string; parsed: SpecialistOutput | null }> {
   const model = MODELS[name];
-  const userPrompt = buildSpecialistUserPrompt(researchAsk, searchContext);
+  const userPrompt = buildSpecialistUserPrompt(researchAsk, searchContext, attachmentContext);
   const raw = await chat(model, [
     { role: "system", content: SPECIALIST_SYSTEM },
     { role: "user", content: userPrompt },
@@ -80,60 +117,88 @@ export async function runSpecialist(
   return { name: name.toUpperCase(), raw, parsed };
 }
 
-const CHAIRMAN_SYSTEM = `You are the Chairman synthesizing three specialist reports into one executive research memo. Match this structure and tone:
+const MEMO_TEMPLATE = `
+**1. Council Synthesis**
+Where the three specialists agreed, where they diverged, and how that informed your final view. Use model names (Gemini, Claude, ChatGPT) when referencing their positions.
 
-1. **Executive Chairman Summary**
-   - Start with a subheading: "Council synthesis (as of [today's date])".
-   - In 2–4 short paragraphs: consensus view on what the data and specialists imply; how the market is pricing the name(s); key recommendation or outlook. Use clear, analytical language (e.g. "this earnings season did not disprove X; it repriced Y through the lens of Z"). Do not invent data; use only the three specialist JSON reports.
+**2. Executive Summary**
+5–7 sentences, standalone readable. Must include your recommendation. No prior context needed.
 
-2. **What the [research context] collectively said**
-   - Subheading that reflects the ask (e.g. "What the last four quarters of hyperscaler releases + transcripts collectively said" or "What the technical and flow data collectively said").
-   - **Shared through-lines:** A numbered list (1., 2., 3....) of themes that appear across the specialists. Each point: one bold short title, then 1–3 sentences with specific numbers or facts. Where the specialists cited sources, include inline citations as [title](url) using the citations from their JSON. Example: "Demand > supply (still): management teams describe capacity as a constraint, with 2026 capex guides at X; see [Source Title](https://...)."
+**3. Investment Thesis**
+3 core pillars, each with supporting evidence. Quantitative grounding required.
 
-3. **Technical View**
-   - Short section: consensus on trend, key levels, and risk. Again cite from specialist reports where relevant.
+**4. Business Quality Assessment**
+Moat, competitive dynamics, management quality.
 
-4. **Key Risks**
-   - Bullet list of main risks, bounded by what the specialists actually said.
+**5. Financial Analysis**
+Key metrics, trends, peer comparison. Data points required.
 
-5. **Bottom Line**
-   - One sentence: explicit upside/downside or recommendation.
+**6. Bull Case / Bear Case**
+Quantified scenarios where possible (e.g. upside/downside ranges).
 
-Rules:
+**7. Key Risks**
+Ranked by probability × impact. Bullet list.
+
+**8. Recommendation & Conviction**
+Explicit, justified, actionable. Price target or conviction level.
+
+**9. Footnotes**
+^1 Title — URL. ^2 Title — URL. etc. All citations from specialist reports.
+`;
+
+const CHAIRMAN_SYSTEM = `You are the senior PM who has read three smart analysts' views and must now decide. Your job is synthesis and judgment, not recap. Where specialists disagree: explain why one argument is more compelling. Where they agree: assess whether that consensus is well-founded or groupthink.
+
+QUANTITATIVE GROUNDING: Every major claim must have a data point, ratio, or comparable. "Revenue growth is strong" is not acceptable — "Revenue grew 34% YoY to $4.2B, ahead of the peer median of 18%" is.
+
+RECENCY FLAG: For topics where timeliness matters, note the vintage of information and flag if material developments may have occurred beyond the specialists' knowledge.
+
+FORMATTING — USE THIS EXACT TEMPLATE (locked in code, not your discretion):
+${MEMO_TEMPLATE}
+
+STRICT RULES:
+- Do not add sections not listed above. Do not omit sections.
+- Each section header must be bolded and numbered exactly as shown (e.g. **1. Council Synthesis**, **2. Executive Summary**).
+- Use footnote numbers (^1, ^2, ...) in the body; list full citations in section 9. Do NOT use inline [title](url) links.
 - Output only Markdown. No code blocks around the markdown.
 - Maximum length: 2 pages when printed (roughly 800–1000 words). Be concise.
-- Every material claim should be traceable to the specialist reports; use their citations (title + URL) for sources.
-- Do not invent data.`;
+- Every material claim traceable to the specialist reports. Do not invent data.
+- Format the output so it reads as a professional investment memo, not a chat response.`;
 
 function buildChairmanUserPrompt(
   researchAsk: string,
   alpha: { name: string; raw: string; parsed: SpecialistOutput | null },
   beta: { name: string; raw: string; parsed: SpecialistOutput | null },
-  gamma: { name: string; raw: string; parsed: SpecialistOutput | null }
+  gamma: { name: string; raw: string; parsed: SpecialistOutput | null },
+  attachmentContext: string = ""
 ): string {
+  const attachmentBlock =
+    attachmentContext.trim().length > 0
+      ? `\nUser-provided documents (for context; specialists had access to these):\n\n${attachmentContext}\n\n`
+      : "";
+
   return `Research ask: ${researchAsk}
+${attachmentBlock}Specialist reports (use these to write the memo). Model mapping: Alpha = Claude, Beta = ChatGPT, Gamma = Gemini.
 
-Specialist reports (use these to write the memo):
-
---- Agent Alpha ---
+--- Agent Alpha (Claude) ---
 ${alpha.parsed ? JSON.stringify(alpha.parsed, null, 2) : alpha.raw}
 
---- Agent Beta ---
+--- Agent Beta (ChatGPT) ---
 ${beta.parsed ? JSON.stringify(beta.parsed, null, 2) : beta.raw}
 
---- Agent Gamma ---
+--- Agent Gamma (Gemini) ---
 ${gamma.parsed ? JSON.stringify(gamma.parsed, null, 2) : gamma.raw}
 
-Produce the executive memo in Markdown only (no \`\`\`markdown wrapper).`;
+Produce the executive memo in Markdown only (no \`\`\`markdown wrapper). Follow the exact template from your system prompt: all 9 sections, numbered and bolded headers, no additions or omissions. Use footnotes for citations. Your job is synthesis and judgment—decide, do not summarize.`;
 }
 
 export async function runChairman(
   researchAsk: string,
   alpha: { name: string; raw: string; parsed: SpecialistOutput | null },
   beta: { name: string; raw: string; parsed: SpecialistOutput | null },
-  gamma: { name: string; raw: string; parsed: SpecialistOutput | null }
+  gamma: { name: string; raw: string; parsed: SpecialistOutput | null },
+  attachmentContext: string = ""
 ): Promise<string> {
-  const userPrompt = buildChairmanUserPrompt(researchAsk, alpha, beta, gamma);
+  const userPrompt = buildChairmanUserPrompt(researchAsk, alpha, beta, gamma, attachmentContext);
   return chat(MODELS.chairman, [
     { role: "system", content: CHAIRMAN_SYSTEM },
     { role: "user", content: userPrompt },
@@ -148,23 +213,30 @@ function extractDataForAnalysisSection(researchAsk: string): string {
   return section;
 }
 
-export async function runResearchPipeline(researchAsk: string): Promise<{
+export async function runResearchPipeline(
+  researchAsk: string,
+  attachments: { name: string; content: string }[] = []
+): Promise<{
   memo: string;
   specialistOutputs: { name: string; raw: string; parsed: SpecialistOutput | null }[];
 }> {
   const dataSection = extractDataForAnalysisSection(researchAsk);
-  const suffix = " stock price technical analysis institutional";
-  const searchQuery = (dataSection + suffix).slice(0, 400);
-  const searchResults = await webSearch(searchQuery, { maxResults: 10 });
+  const searchQueries = [
+    dataSection + " earnings transcript 10-K SEC filing",
+    dataSection + " stock price technical analysis institutional flow",
+    dataSection + " sector macro trends outlook",
+  ];
+  const searchResults = await webSearchMulti(searchQueries, { maxResults: 15 });
   const searchContext = formatSearchContext(searchResults);
+  const attachmentContext = formatAttachmentContext(attachments);
 
   const [alpha, beta, gamma] = await Promise.all([
-    runSpecialist("alpha", researchAsk, searchContext),
-    runSpecialist("beta", researchAsk, searchContext),
-    runSpecialist("gamma", researchAsk, searchContext),
+    runSpecialist("alpha", researchAsk, searchContext, attachmentContext),
+    runSpecialist("beta", researchAsk, searchContext, attachmentContext),
+    runSpecialist("gamma", researchAsk, searchContext, attachmentContext),
   ]);
 
-  const memo = await runChairman(researchAsk, alpha, beta, gamma);
+  const memo = await runChairman(researchAsk, alpha, beta, gamma, attachmentContext);
 
   return {
     memo: memo.replace(/^```\s*markdown?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim(),
@@ -177,6 +249,8 @@ export async function runResearchPipeline(researchAsk: string): Promise<{
 const MOCK_SPECIALIST: SpecialistOutput = {
   data_analysis:
     "Mock data analysis: Based on available sources, the name/sector referenced in the research ask shows recent volatility. Key metrics and time frames would be populated from live search in production.",
+  key_assumptions_and_confidence:
+    "Mock: Key assumptions would list 2-4 items with high/medium/low confidence. Data vintage would be flagged where relevant.",
   technical_analysis: {
     trend_levels: "Support near recent lows; resistance at prior highs. Moving averages suggest neutral to bullish short-term bias.",
     stochastic_indicators: "RSI in mid-range; stochastic not overbought or oversold. Momentum indicators would be filled from live data.",
@@ -191,44 +265,42 @@ const MOCK_SPECIALIST: SpecialistOutput = {
   confidence_score: 0.72,
 };
 
-const MOCK_MEMO = `## Executive Chairman Summary
+const MOCK_MEMO = `**1. Council Synthesis**
 
-**Council synthesis (as of [date]):** The council’s view is illustrative only while the app runs in mock mode. Once live agents are enabled, this section will reflect a synthesized view from Agent Alpha (Claude), Agent Beta (GPT), and Agent Gamma (Gemini) based on web search and technical analysis. Businesses would be described as healthy-to-strong or otherwise, with the market trading on visibility into revenue and margins; key recommendation and outlook would be stated here.
+Mock—in live runs: where Gemini, Claude, and ChatGPT agreed, where they diverged, and how that informed the final view.
 
-**Recommendation:** Use mock mode for UI development; switch to live APIs when ready for real research memos.
+**2. Executive Summary**
 
----
+Mock mode active. Once live agents are enabled, 5–7 standalone sentences with recommendation would appear here. Set \`USE_MOCK_AGENTS=false\` for real memos.
 
-## What the research collectively said
+**3. Investment Thesis**
 
-**Shared through-lines (mock):**
+Mock—3 core pillars with supporting evidence from specialist reports.
 
-1. **Demand vs. supply:** In live runs, specialist reports would summarize capacity, capex guides, and utilization; citations would link to earnings or filings, e.g. [Example Source 1](https://example.com/1).
+**4. Business Quality Assessment**
 
-2. **Market’s rule change:** Investors would be described as rewarding spend plus a credible conversion path (utilization → unit economics → margins → FCF); one or more post-print reactions would be cited, e.g. [Example Source 2](https://example.com/2).
+Mock—moat, competitive dynamics, management from live specialist analysis.
 
-3. **Technical and flow:** Consensus trend levels, options volume, and institutional flow would be summarized from the three agents with inline citations.
+**5. Financial Analysis**
 
----
+Mock—key metrics, trends, peer comparison with data points.
 
-## Technical View
+**6. Bull Case / Bear Case**
 
-- **Trend:** Neutral to bullish short-term (mock). In production, consensus from specialist JSON.
-- **Key levels:** Support/resistance and moving averages from live specialist reports.
-- **Risk:** Volatility and drawdown assumptions from specialist data.
+Mock—quantified scenarios where possible.
 
----
+**7. Key Risks**
 
-## Key Risks
+- Market risk, sector rotation, company-specific risks (mock).
 
-- Market risk, sector rotation, and company-specific risks from live reports.
-- In mock mode, no real data is used.
+**8. Recommendation & Conviction**
 
----
+Mock—explicit recommendation with price target or conviction level.
 
-## Bottom Line
+**9. Footnotes**
 
-*Mock mode active — set \`USE_MOCK_AGENTS=false\` to generate real executive memos with live agents.*
+^1 Example Source 1 — https://example.com/1
+^2 Example Source 2 — https://example.com/2
 `;
 
 async function runMockResearchPipeline(researchAsk: string): Promise<{
@@ -249,7 +321,10 @@ async function runMockResearchPipeline(researchAsk: string): Promise<{
 }
 
 /** Use mock pipeline when USE_MOCK_AGENTS is "true" (default for testing). Set to "false" for live LLM calls. */
-export async function runResearchPipelineOrMock(researchAsk: string): Promise<{
+export async function runResearchPipelineOrMock(
+  researchAsk: string,
+  attachments: { name: string; content: string }[] = []
+): Promise<{
   memo: string;
   specialistOutputs: { name: string; raw: string; parsed: SpecialistOutput | null }[];
 }> {
@@ -260,5 +335,5 @@ export async function runResearchPipelineOrMock(researchAsk: string): Promise<{
   if (useMock) {
     return runMockResearchPipeline(researchAsk);
   }
-  return runResearchPipeline(researchAsk);
+  return runResearchPipeline(researchAsk, attachments);
 }
